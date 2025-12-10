@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8" />
+<title>Restaurant Order Board</title>
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background-image: url("https://images.unsplash.com/photo-1517248135467-4c7edcad34c4");
+    background-size: cover;
+    background-position: center;
+    color: white;
+}
+
+h1 {
+    text-align: center;
+    padding: 20px;
+    backdrop-filter: blur(4px);
+}
+
+.form-box {
+    width: 350px;
+    margin: 20px auto;
+    background: rgba(0,0,0,0.55);
+    padding: 20px;
+    border-radius: 15px;
+    backdrop-filter: blur(8px);
+}
+
+input, textarea {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: none;
+}
+
+button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 12px;
+    background-color: #00e676;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.columns {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 15px;
+}
+
+.column {
+    width: 220px;
+    background: rgba(0,0,0,0.55);
+    margin: 10px;
+    padding: 10px;
+    border-radius: 10px;
+    min-height: 220px;
+}
+
+.order {
+    background: rgba(255,255,255,0.18);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #444;
+}
+
+.status-new { color: #fff; }
+.status-preparing { color: #ffeb3b; font-weight: bold; }
+.status-ready { color: #00e676; font-weight: bold; }
+.status-served { color: #4fc3f7; font-weight: bold; }
+
+.track-box {
+    width: 90%;
+    margin: 30px auto;
+    background: rgba(0,0,0,0.55);
+    padding: 20px;
+    border-radius: 15px;
+    backdrop-filter: blur(8px);
+}
+
+select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: none;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🍽 Restaurant Menu & Order Board</h1>
+
+<div class="form-box">
+    <h2>Add Order</h2>
+    <form id="orderForm">
+        <input id="customer" placeholder="Customer Name" required />
+        <input id="tableNo" placeholder="Table Number" required />
+        <input id="itemName" placeholder="Item Ordered" required />
+        <textarea id="notes" placeholder="Notes (optional)"></textarea>
+        <button type="submit">Add Order</button>
+    </form>
+</div>
+
+<div class="columns">
+    <div class="column" id="col-new"><h3>New</h3></div>
+    <div class="column" id="col-preparing"><h3>Preparing</h3></div>
+    <div class="column" id="col-ready"><h3>Ready</h3></div>
+    <div class="column" id="col-collected"><h3>Served</h3></div>
+</div>
+
+<div class="track-box">
+    <h2>Track Orders</h2>
+    <select id="tableSelect" onchange="loadTableOrders()">
+        <option value="">Select Table</option>
+    </select>
+    <div id="trackResults" style="margin-top:15px;"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+    apiKey: "YOUR_KEY",
+    authDomain: "YOUR_DOMAIN",
+    projectId: "YOUR_PROJECT"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let orderNo = 1;
+
+orderForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const num = String(orderNo).padStart(3, "0");
+    orderNo++;
+
+    await db.collection("orders").add({
+        orderNo: num,
+        customer: customer.value,
+        tableNo: String(tableNo.value),
+        item: itemName.value,
+        notes: notes.value,
+        createdAt: Date.now(),
+        status: "New"
+    });
+
+    e.target.reset();
+});
+
+function renderCard(doc) {
+    const d = doc.data();
+    let statusText = "";
+    let cssClass = "";
+
+    if (d.status === "New")        { statusText = "New Order"; cssClass = "status-new"; }
+    if (d.status === "Preparing")  { statusText = "Preparing"; cssClass = "status-preparing"; }
+    if (d.status === "Ready")      { statusText = "Ready to Collect"; cssClass = "status-ready"; }
+    if (d.status === "Collected")  { statusText = "Served"; cssClass = "status-served"; }
+
+    return `
+        <div class="order">
+            <strong>#${d.orderNo} - ${d.item}</strong><br>
+            ${d.customer} (Table ${d.tableNo})<br>
+            <span class="${cssClass}">${statusText}</span><br>
+            ${d.notes || ""}
+        </div>
+    `;
+}
+
+db.collection("orders").orderBy("createdAt").onSnapshot((snapshot) => {
+    col-new.innerHTML = "<h3>New</h3>";
+    col-preparing.innerHTML = "<h3>Preparing</h3>";
+    col-ready.innerHTML = "<h3>Ready</h3>";
+    col-collected.innerHTML = "<h3>Served</h3>";
+
+    const activeTables = new Set();
+
+    snapshot.forEach((doc) => {
+        const d = doc.data();
+        const html = renderCard(doc);
+
+        if (d.status !== "Collected") activeTables.add(d.tableNo);
+
+        if (d.status === "New") col-new.innerHTML += html;
+        if (d.status === "Preparing") col-preparing.innerHTML += html;
+        if (d.status === "Ready") col-ready.innerHTML += html;
+        if (d.status === "Collected") col-collected.innerHTML += html;
+    });
+
+    tableSelect.innerHTML = `<option value="">Select Table</option>`;
+    activeTables.forEach(t => {
+        tableSelect.innerHTML += `<option value="${t}">Table ${t}</option>`;
+    });
+});
+
+async function loadTableOrders() {
+    const t = tableSelect.value;
+
+    if (!t) {
+        trackResults.innerHTML = "";
+        return;
+    }
+
+    const q = await db.collection("orders")
+                       .where("tableNo", "==", t)
+                       .orderBy("createdAt")
+                       .get();
+
+    if (q.empty) {
+        trackResults.innerHTML = "No orders for this table.";
+        return;
+    }
+
+    let out = "";
+    q.forEach(doc => out += renderCard(doc));
+
+    trackResults.innerHTML = out;
+}
+</script>
+
+</body>
+</html>
