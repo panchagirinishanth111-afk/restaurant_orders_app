@@ -130,6 +130,13 @@ select {
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 
 <script>
+
+/* ================================
+   🔥 INSERT YOUR FIREBASE CONFIG HERE
+   Replace EVERYTHING in firebaseConfig with 
+   the config shown in Firebase Console → Project Settings → Web App
+================================= */
+
 const firebaseConfig = {
   apiKey: "AIzaSyBAr0UJ_U8cOEBaxzi5zprQAVikIQdHeSw",
   authDomain: "ordersapp-fdaac.firebaseapp.com",
@@ -142,6 +149,10 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+
+/* ================================
+   ADD ORDER
+================================= */
 
 let orderNo = 1;
 
@@ -164,6 +175,10 @@ orderForm.addEventListener("submit", async (e) => {
     e.target.reset();
 });
 
+/* ================================
+   RENDER ORDER CARD
+================================= */
+
 function renderCard(doc) {
     const d = doc.data();
     let statusText = "";
@@ -184,11 +199,16 @@ function renderCard(doc) {
     `;
 }
 
+/* ================================
+   REALTIME ORDER BOARD
+================================= */
+
 db.collection("orders").orderBy("createdAt").onSnapshot((snapshot) => {
-    col-new.innerHTML = "<h3>New</h3>";
-    col-preparing.innerHTML = "<h3>Preparing</h3>";
-    col-ready.innerHTML = "<h3>Ready</h3>";
-    col-collected.innerHTML = "<h3>Served</h3>";
+
+    document.getElementById("col-new").innerHTML = "<h3>New</h3>";
+    document.getElementById("col-preparing").innerHTML = "<h3>Preparing</h3>";
+    document.getElementById("col-ready").innerHTML = "<h3>Ready</h3>";
+    document.getElementById("col-collected").innerHTML = "<h3>Served</h3>";
 
     const activeTables = new Set();
 
@@ -198,23 +218,31 @@ db.collection("orders").orderBy("createdAt").onSnapshot((snapshot) => {
 
         if (d.status !== "Collected") activeTables.add(d.tableNo);
 
-        if (d.status === "New") col-new.innerHTML += html;
-        if (d.status === "Preparing") col-preparing.innerHTML += html;
-        if (d.status === "Ready") col-ready.innerHTML += html;
-        if (d.status === "Collected") col-collected.innerHTML += html;
+        if (d.status === "New")        document.getElementById("col-new").innerHTML += html;
+        if (d.status === "Preparing")  document.getElementById("col-preparing").innerHTML += html;
+        if (d.status === "Ready")      document.getElementById("col-ready").innerHTML += html;
+        if (d.status === "Collected")  document.getElementById("col-collected").innerHTML += html;
     });
 
+    /* Populate Track Orders dropdown */
+    const tableSelect = document.getElementById("tableSelect");
     tableSelect.innerHTML = `<option value="">Select Table</option>`;
+
     activeTables.forEach(t => {
         tableSelect.innerHTML += `<option value="${t}">Table ${t}</option>`;
     });
+
 });
 
+/* ================================
+   TRACK ORDERS BY TABLE
+================================= */
+
 async function loadTableOrders() {
-    const t = tableSelect.value;
+    const t = document.getElementById("tableSelect").value;
 
     if (!t) {
-        trackResults.innerHTML = "";
+        document.getElementById("trackResults").innerHTML = "";
         return;
     }
 
@@ -224,15 +252,16 @@ async function loadTableOrders() {
                        .get();
 
     if (q.empty) {
-        trackResults.innerHTML = "No orders for this table.";
+        document.getElementById("trackResults").innerHTML = "No orders for this table.";
         return;
     }
 
     let out = "";
     q.forEach(doc => out += renderCard(doc));
 
-    trackResults.innerHTML = out;
+    document.getElementById("trackResults").innerHTML = out;
 }
+
 </script>
 
 </body>
